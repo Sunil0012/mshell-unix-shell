@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=mshell Unix Shell
+Comment=Open the mshell operating systems shell in a terminal window
+Exec=/home/sunil/Desktop/OS/OS_Project/run-minish.sh
+Icon=utilities-terminal
+Terminal=false
+Categories=System;TerminalEmulator;
