@@ -8,7 +8,7 @@ A small interactive shell written in C for Linux/POSIX systems. It demonstrates 
 make
 ./mshell
 # or run a command script
-./mshell examples.sh
+./mshell demo.ms
 ```
 
 Use `make clean` to remove the compiled executable.
