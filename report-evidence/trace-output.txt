@@ -1,0 +1,10 @@
+[trace] fork stage=1/2 command=echo
+[trace] pid=218327 pgid=218327
+[trace] fork stage=2/2 command=tr
+[trace] pid=218328 pgid=218327
+PIPELINE: ALPHA BETA
+[trace] fork stage=1/1 command=false
+[trace] pid=218329 pgid=218329
+[trace] fork stage=1/1 command=echo
+[trace] pid=218330 pgid=218330
+conditional-ok

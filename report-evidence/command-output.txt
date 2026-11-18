@@ -1,0 +1,2 @@
+PIPELINE: ALPHA BETA
+conditional-ok

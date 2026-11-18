@@ -1,6 +1,6 @@
 # Mini Unix Shell
 
-Detailed CSL301 report: [PDF](report.pdf) · [Markdown source](REPORT.md).
+Detailed CSL301 report: [PDF](report.pdf) · [Markdown source](REPORT.md). Terminal evidence images and captured outputs are in `report-evidence/`.
 
 A small interactive shell written in C for Linux/POSIX systems. It demonstrates process creation, process groups, pipes, file descriptor redirection, signals, and terminal job control.
 

@@ -1,0 +1,6 @@
+sh tests/mshell-smoke.sh
+mshell smoke checks passed
+sh tests/compat.sh
+supported-subset Bash compatibility checks passed
+python3 tests/job-control.py
+PTY job-control checks passed
