@@ -1,0 +1,12 @@
+sleep 15 | cat
+[trace] fork stage=1/2 command=sleep
+[trace] pid=263146 pgid=263146
+[trace] fork stage=2/2 command=cat
+[trace] pid=263147 pgid=263146
+^Z[1] Stopped sleep 15 | cat
+mshell:/home/sunil/Desktop/OS/OS_Project$ jobs
+[1] Stopped sleep 15 | cat
+mshell:/home/sunil/Desktop/OS/OS_Project$ bg %1
+[1] sleep 15 | cat &
+mshell:/home/sunil/Desktop/OS/OS_Project$ fg %1
+^Cmshell:/home/sunil/Desktop/OS/OS_Project$

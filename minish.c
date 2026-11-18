@@ -101,8 +101,10 @@ static int parse(char **t,int n,Command *cmd,int *count,int *bg) {
     char *x=t[i]; Command *c=&cmd[*count-1];
     if(!strcmp(x,"|")) { if(a==0||*count>=MAX_CMDS) return -1; a=0; (*count)++; }
     else if(!strcmp(x,"<")||!strcmp(x,">")||!strcmp(x,">>")||!strcmp(x,"2>")||!strcmp(x,"2>>")||!strcmp(x,"<<")) {
-      if(i+1>=n) return -1; char **dst=!strcmp(x,"<")?&c->in:!strcmp(x,"<<")?&c->heredoc:!strcmp(x,"2>")?&c->err:!strcmp(x,"2>>")?&c->err_append:!strcmp(x,">")?&c->out:&c->append;
-      if(*dst) return -1; *dst=t[++i];
+      if(i+1>=n) return -1;
+      char **dst=!strcmp(x,"<")?&c->in:!strcmp(x,"<<")?&c->heredoc:!strcmp(x,"2>")?&c->err:!strcmp(x,"2>>")?&c->err_append:!strcmp(x,">")?&c->out:&c->append;
+      if(*dst) return -1;
+      *dst=t[++i];
     } else if(!strcmp(x,"&")) { if(i!=n-1) return -1; *bg=1; }
     else if(!strcmp(x,"&&")) return -1;
     else { if(a>=MAX_ARGS-1) return -1; c->argv[a++]=x; }
@@ -212,14 +214,27 @@ static void run_command(char *line) {
     pid_t p=fork(); if(p<0) { perror("fork"); break; }
     if(p==0) {
       child_signal_defaults(); pid_t group=pgid?pgid:getpid(); setpgid(0,group);
-      if(prev>=0) dup2(prev,STDIN_FILENO); if(fd[1]>=0) dup2(fd[1],STDOUT_FILENO);
-      if(prev>=0) close(prev); if(fd[0]>=0) close(fd[0]); if(fd[1]>=0) close(fd[1]);
+      if(prev>=0) dup2(prev,STDIN_FILENO);
+      if(fd[1]>=0) dup2(fd[1],STDOUT_FILENO);
+      if(prev>=0) close(prev);
+      if(fd[0]>=0) close(fd[0]);
+      if(fd[1]>=0) close(fd[1]);
       if(cmds[i].in) { int f=open(cmds[i].in,O_RDONLY); if(f<0){perror(cmds[i].in);_exit(126);} dup2(f,0);close(f); }
       char *out=cmds[i].out?cmds[i].out:cmds[i].append; if(out) { int flags=O_WRONLY|O_CREAT|(cmds[i].append?O_APPEND:O_TRUNC); int f=open(out,flags,0666); if(f<0){perror(out);_exit(126);}dup2(f,1);close(f); }
       char *err=cmds[i].err?cmds[i].err:cmds[i].err_append; if(err){int f=open(err,O_WRONLY|O_CREAT|(cmds[i].err_append?O_APPEND:O_TRUNC),0666);if(f<0){perror(err);_exit(126);}dup2(f,2);close(f);}
-      if(builtin(&cmds[i])) _exit(0); execvp(cmds[i].argv[0],cmds[i].argv); perror(cmds[i].argv[0]); _exit(errno==ENOENT?127:126);
+      if(builtin(&cmds[i])) _exit(0);
+      execvp(cmds[i].argv[0],cmds[i].argv);
+      perror(cmds[i].argv[0]);
+      _exit(errno==ENOENT?127:126);
     }
-    if(!pgid) pgid=p; setpgid(p,pgid); if(launched_n<MAX_CMDS)launched[launched_n++]=p; if(trace_mode)fprintf(stderr,"[trace] pid=%ld pgid=%ld\n",(long)p,(long)pgid); last=p; if(prev>=0)close(prev); if(fd[1]>=0)close(fd[1]); prev=fd[0];
+    if(!pgid) pgid=p;
+    setpgid(p,pgid);
+    if(launched_n<MAX_CMDS) launched[launched_n++]=p;
+    if(trace_mode) fprintf(stderr,"[trace] pid=%ld pgid=%ld\n",(long)p,(long)pgid);
+    last=p;
+    if(prev>=0) close(prev);
+    if(fd[1]>=0) close(fd[1]);
+    prev=fd[0];
   }
   if(prev>=0)close(prev);
   if(pgid) { Job *j=add_job(pgid,line,1,launched_n,launched); if(j) { if(bg) { printf("[%d] %d\n",j->id,(int)pgid); last_status=0; } else wait_foreground(j); } else while(waitpid(-pgid,NULL,0)>0){} }
