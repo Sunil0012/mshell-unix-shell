@@ -1,9 +1,9 @@
-# LABORATORY TECHNICAL REPORT: MSHELL UNIX-STYLE COMMAND SHELL
+# OPERATING SYSTEMS PROJECT: MSHELL UNIX-STYLE COMMAND SHELL
 
 *Design and Implementation of a Unix-Style Command Shell*
 
 **Student Name & Roll No:** Khethavath Sunil Naik (12341170)  
-**Course & Institution:** CSL301 Operating Systems | Indian Institute of Technology Tirupati  
+**Course:** CSL301 Operating Systems  
 **Project:** MShell (C, POSIX)  
 **Repository:** github.com/Sunil0012/mshell-unix-shell
 
