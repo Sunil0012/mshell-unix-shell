@@ -1,5 +1,7 @@
 # Mini Unix Shell
 
+Detailed CSL301 report: [PDF](report.pdf) · [editable HTML](report.html) · [Markdown](REPORT.md).
+
 A small interactive shell written in C for Linux/POSIX systems. It demonstrates process creation, process groups, pipes, file descriptor redirection, signals, and terminal job control.
 
 ## Build and run
