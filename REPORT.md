@@ -1,7 +1,9 @@
 # MShell: Design and Implementation of a Unix-Style Command Shell
 
 **Operating Systems Project Report**  
-**Student:** Sunil Naik  
+**Student:** Khethavath Sunil Naik  
+**Roll Number:** 12341170  
+**Course:** CSL301 Operating Systems  
 **Repository:** https://github.com/Sunil0012/mshell-unix-shell  
 **Platform:** Linux  
 **Implementation language:** C (POSIX APIs)

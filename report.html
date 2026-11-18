@@ -1,0 +1,111 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>MShell — Operating Systems Project Report</title>
+<style>
+@page { size: A4; margin: 19mm 18mm 18mm; }
+body { font-family: Carlito, Calibri, sans-serif; color: #18262d; font-size: 10.5pt; line-height: 1.48; }
+h1,h2,h3 { color: #123640; page-break-after: avoid; }
+h1 { font-size: 30pt; line-height: 1.1; margin: 0 0 9mm; }
+h2 { font-size: 19pt; border-bottom: 2px solid #57d6b0; padding-bottom: 3mm; margin-top: 9mm; }
+h3 { font-size: 12.5pt; margin-top: 6mm; }
+p { margin: 2.5mm 0; }
+code { font-family: "DejaVu Sans Mono", monospace; color: #146c62; font-size: 9pt; }
+pre { background: #eef4f3; border-left: 3px solid #57d6b0; padding: 4mm; white-space: pre-wrap; font-size: 8.5pt; }
+table { width: 100%; border-collapse: collapse; margin: 4mm 0; font-size: 9pt; }
+th { background: #123640; color: white; text-align: left; }
+td,th { padding: 2.3mm; border: 1px solid #cedbd9; vertical-align: top; }
+tr:nth-child(even) td { background: #f1f6f5; }
+.cover { height: 245mm; display: flex; flex-direction: column; justify-content: center; page-break-after: always; }
+.tag { color: #16836f; letter-spacing: 2px; font-size: 10pt; font-weight: bold; }
+.subtitle { font-size: 16pt; color: #527078; max-width: 145mm; }
+.accent { width: 36mm; height: 3mm; background: #57d6b0; margin: 7mm 0; }
+.identity { margin-top: 20mm; border-top: 1px solid #b9c9c7; padding-top: 5mm; width: 120mm; }
+.small { color: #5c7076; font-size: 8.5pt; }
+.callout { padding: 4mm; background: #eef7f3; border-left: 3px solid #16836f; }
+.pagebreak { page-break-before: always; }
+.chart { margin: 5mm 0; }
+.bar { height: 7mm; background: #57d6b0; color: #092d2a; margin: 2mm 0; padding: 1mm 2mm; font-size: 8pt; white-space: nowrap; }
+.bar.bash { background: #7896a0; color: white; }
+</style></head><body>
+<section class="cover">
+<div class="tag">CSL301 · OPERATING SYSTEMS</div>
+<div class="accent"></div>
+<h1>MShell</h1>
+<div class="subtitle">Design and Implementation of a Unix-Style Command Shell</div>
+<p>A systems programming project exploring processes, file descriptors, pipelines, signals, process groups, and terminal job control.</p>
+<div class="identity"><b>Submitted by</b><br>Khethavath Sunil Naik<br>Roll Number: 12341170<br>Course: CSL301 Operating Systems</div>
+<p class="small" style="margin-top:18mm">Source code and project artifacts:<br>https://github.com/Sunil0012/mshell-unix-shell</p>
+</section>
+
+<h2>Abstract</h2>
+<p>MShell is an educational command interpreter written in C for Linux/POSIX environments. It launches external programs with <code>fork</code> and <code>execvp</code>, connects commands with pipes, redirects standard input/output/error, and manages foreground and background jobs using process groups and signals. It includes a deliberately limited scripting layer, persistent command history, timestamped command traces, glob expansion, and process tracing.</p>
+<p>The project is evaluated with automated functional checks, a pseudo-terminal job-control test, a small compatibility comparison against Bash, and a repeated process-launch benchmark. The report documents both demonstrated behavior and known limitations; MShell is not presented as a complete POSIX or Bash implementation.</p>
+
+<h2>1. Objectives and scope</h2>
+<ul><li>Apply operating-system process APIs to launch and supervise programs.</li><li>Demonstrate IPC and descriptor duplication through pipelines and redirection.</li><li>Implement terminal foreground/background control using process groups and signals.</li><li>Provide a reproducible test suite, trace mode, and performance comparison.</li><li>Define a manageable Unix-style shell subset instead of claiming full shell compatibility.</li></ul>
+
+<h2>2. Architecture</h2>
+<p>The implementation follows a read–parse–execute loop. Input is split into command segments, tokenized with quote and escape handling, expanded, and parsed into a pipeline. Each pipeline stage is represented by a command with an argument vector and optional redirection paths.</p>
+<table><tr><th>Component</th><th>Responsibility</th><th>OS concept</th></tr>
+<tr><td>Tokenizer and parser</td><td>Recognize words, quotes, pipes, redirection operators, and command-list operators.</td><td>Command interpretation</td></tr>
+<tr><td>Pipeline launcher</td><td>Create pipes, fork each stage, assign a shared process group, and call <code>execvp</code>.</td><td>Processes, IPC, process groups</td></tr>
+<tr><td>Descriptor setup</td><td>Use <code>dup2</code> to connect pipeline ends and redirected files to standard descriptors.</td><td>File descriptor tables</td></tr>
+<tr><td>Job table</td><td>Associate child PIDs with a job/process group and track stopped, continued, and exited children.</td><td>Scheduling state, signals</td></tr>
+<tr><td>Script interpreter</td><td>Execute command lists, supported conditional/loop blocks, functions, and sourced files.</td><td>Language runtime</td></tr>
+</table>
+
+<h2>3. Process creation and pipeline execution</h2>
+<p>For an N-stage pipeline, the parent creates N−1 pipes and forks one child per command. A child joins the common process group, duplicates the previous pipe's read end onto standard input and the next pipe's write end onto standard output, applies explicit redirections, then executes the program. The parent closes pipe descriptors it no longer needs and waits for the process group when the pipeline is foregrounded.</p>
+<pre>producer | filter | consumer
+pipe() → fork producer → fork filter → fork consumer
+             dup2(write)   dup2(read/write)  dup2(read)
+parent: close unused ends → transfer terminal → wait for process group</pre>
+<p>External programs are resolved through <code>PATH</code>. Builtins that change shell state, such as <code>cd</code> and variable assignment, execute in the shell process when used alone; a builtin in a pipeline runs in a child and therefore cannot change the parent shell state.</p>
+
+<h2>4. Job control and signals</h2>
+<p>In interactive mode, the shell establishes its own process group, takes terminal foreground ownership, and ignores terminal-control signals that should not stop the shell. Children restore default signal dispositions. A foreground job receives terminal ownership while it runs; after completion or suspension, the shell reclaims the terminal.</p>
+<p>Ctrl-C produces SIGINT for the foreground process group. Ctrl-Z produces SIGTSTP. The shell records each pipeline child and updates the job state from <code>waitpid</code> events, enabling <code>jobs</code>, <code>fg</code>, and <code>bg</code>. PTY integration tests exercise stop, list, resume in background, foreground resume, and interrupt across a two-process pipeline.</p>
+
+<h2>5. Features and shell grammar</h2>
+<table><tr><th>Area</th><th>Supported subset</th><th>Example</th></tr>
+<tr><td>Commands and pipelines</td><td>External commands, PATH search, multi-stage pipes</td><td><code>cat file | grep word</code></td></tr>
+<tr><td>Redirection</td><td>stdin, stdout truncate/append, stderr truncate/append, heredoc</td><td><code>tool 2&gt; errors.log</code></td></tr>
+<tr><td>Expansion</td><td>Environment variables, status, filename globbing</td><td><code>echo $HOME *.c</code></td></tr>
+<tr><td>Lists</td><td>Sequential and status-conditioned command lists</td><td><code>false &amp;&amp; echo no || echo yes</code></td></tr>
+<tr><td>Jobs</td><td>Background execution and interactive fg/bg control</td><td><code>sleep 5 &amp;</code></td></tr>
+<tr><td>Scripts</td><td>if/else/fi, for/done, no-argument functions, source</td><td><code>source demo.ms</code></td></tr>
+<tr><td>Conveniences</td><td>Builtins, aliases, persistent history, timestamped trace</td><td><code>history</code></td></tr></table>
+<p class="callout"><b>Grammar constraints:</b> script blocks do not nest; functions have no positional parameters; aliases expand a command name to one word. Command substitution and the complete POSIX/Bash grammar are not implemented.</p>
+
+<h2>6. Validation strategy and results</h2>
+<p>Run <code>make test</code> from the repository root. The target builds MShell and executes three layers of checks:</p>
+<ol><li>Smoke checks cover command lists/status, pipelines, globbing, stderr redirection, heredocs, aliases, sourcing, script control flow, and trace output.</li><li>A Bash compatibility check compares output for a small shared subset. It is a targeted check, not a conformance suite.</li><li>A Python pseudo-terminal test interacts with the real terminal interface to exercise Ctrl-Z, <code>jobs</code>, <code>bg</code>, <code>fg</code>, and Ctrl-C for a pipeline.</li></ol>
+<p>All three test stages passed in the development environment. Compiler warnings about compressed one-line control statements remain; they are readability warnings and should be cleaned up in a future maintenance pass.</p>
+
+<h2>7. Benchmark methodology</h2>
+<p>The comparison workload executes external <code>/bin/true</code> repeatedly. Each shell processes the same generated input. The Python driver performs one warm-up per shell, alternates measured run order to reduce order bias, measures elapsed time with a monotonic clock, and reports each shell's median, interquartile range, minimum, and maximum. It also calculates paired differences between corresponding alternating runs and writes raw data to CSV.</p>
+<p>The recorded 25-run, 3,000-command trial produced the following summary (values supplied from the benchmark run):</p>
+<table><tr><th>Shell</th><th>Median</th><th>IQR</th><th>Minimum</th><th>Maximum</th></tr>
+<tr><td>MShell</td><td>1.6134 s</td><td>0.0272 s</td><td>1.5821 s</td><td>1.7849 s</td></tr>
+<tr><td>Bash</td><td>1.5816 s</td><td>0.0502 s</td><td>1.5189 s</td><td>1.7042 s</td></tr></table>
+<div class="chart"><div class="bar" style="width:82%">MShell median · 1.6134 s</div><div class="bar bash" style="width:80%">Bash median · 1.5816 s</div></div>
+<p>The difference of medians is +0.0318 s, approximately 2.0% of Bash's median. The ranges overlap and the MShell maximum reflects a slower run; the result supports only a modest observed difference for this workload. Since process creation and waiting dominate this benchmark, it does not measure shell parsing, pipelines, redirection, or job-control performance. Results depend on hardware, kernel, compiler, and system load; the test should be repeated on an identified host before drawing broader conclusions.</p>
+
+<h2>8. Reproduction and demonstration</h2>
+<pre>make
+make test
+sh benchmarks/compare.sh --commands 3000 --runs 25 --csv results.csv
+./run-mshell.sh
+# in the interactive shell:
+source demo.ms</pre>
+<p>The demo shows a pipeline, file redirection, a background job, job listing, and foregrounding. Use Ctrl-C to stop the foreground sleep, or Ctrl-Z followed by <code>bg</code>/<code>fg</code> to demonstrate suspension and resumption.</p>
+
+<h2>9. Limitations and future work</h2>
+<ul><li>Expand the parser into a structured grammar with nested blocks and positional function parameters.</li><li>Add more complete quoting rules, command substitution, and standard shell expansion behavior.</li><li>Test additional pipeline failure cases and terminal modes across Linux terminal emulators.</li><li>Refactor compressed C statements, add memory/error-path cleanup, and run sanitizers.</li><li>Record CPU, kernel, compiler, and load details for benchmark reproducibility.</li></ul>
+
+<h2>Conclusion</h2>
+<p>MShell demonstrates core operating-systems mechanisms in an inspectable C project: process creation, execution replacement, descriptor duplication, IPC, process groups, signals, and terminal job control. A layered test suite, trace mode, Bash subset comparison, and repeated benchmark make its behavior easier to evaluate. Its deliberately limited grammar and measured-performance scope are stated so the work can be assessed on its actual implementation.</p>
+
+<h2>References</h2>
+<ol><li>Linux man-pages project: <code>fork(2)</code>, <code>exec(3)</code>, <code>pipe(2)</code>, <code>dup2(2)</code>, <code>waitpid(2)</code>, <code>setpgid(2)</code>, <code>tcsetpgrp(3)</code>, <code>signal(7)</code>.</li><li>GNU Bash manual, for comparison of common command-line behavior: https://www.gnu.org/software/bash/manual/</li></ol>
+<p class="small">Source repository: https://github.com/Sunil0012/mshell-unix-shell</p>
+</body></html>
