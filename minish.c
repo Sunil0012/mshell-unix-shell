@@ -145,7 +145,7 @@ static int builtin(Command *c) {
   if(!strcmp(v[0],"help")) { puts("Builtins: cd [dir|-], pwd, export, unset, jobs, fg [%job], bg [%job], history, help, exit. Supports variables, pipelines, redirection, background jobs, scripts, quotes, Ctrl-C and Ctrl-Z. History persists in ~/.mshell_history."); return 1; }
   if(!strcmp(v[0],"exit")) exit(0);
   if(!strcmp(v[0],"fg")||!strcmp(v[0],"bg")) {
-    int id=0; if(v[1]) id=atoi(v[1][0]=='%'?v[1]+1:v[1]); else { for(int i=0;i<MAX_JOBS;i++) if(jobs[i].id) id=jobs[i].id; }
+    int id=0; if(v[1]) id=atoi(v[1][0]=='%'?v[1]+1:v[1]); else { for(int i=0;i<MAX_JOBS;i++) if(jobs[i].id>id) id=jobs[i].id; }
     Job *j=find_job_id(id); if(!j) { fprintf(stderr,"%s: no such job\n",v[0]); return 1; }
     if(kill(-j->pgid,SIGCONT)<0) perror(v[0]); else j->running=1;
     if(!strcmp(v[0],"fg")) wait_foreground(j); else printf("[%d] %s &\n",j->id,j->line); return 1;
